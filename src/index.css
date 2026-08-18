@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+body {
+  background-color: #fff;
+  color: #000;
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Custom masonry override for large images */
+.masonry-columns {
+  column-count: 1;
+  column-gap: 48px; /* Yatay (sütunlar arası) DAHA ÇOK boşluk */
+}
+
+@media (min-width: 768px) {
+  .masonry-columns {
+    column-count: 2;
+    column-gap: 48px; /* Yatay (sütunlar arası) DAHA ÇOK boşluk */
+  }
+}
+
+@media (min-width: 1024px) {
+  .masonry-columns {
+    column-count: 3;
+    column-gap: 48px; /* Yatay (sütunlar arası) DAHA ÇOK boşluk */
+  }
+}
+
+.masonry-item {
+  break-inside: avoid;
+  margin-bottom: 8px; /* Dikey (alt alta inen resimler arası) AZ boşluk */
+}
