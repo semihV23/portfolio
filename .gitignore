@@ -41,6 +41,7 @@ agents/
 .opencode/
 
 # Sıkıştırıcı klasörlerindeki fotoğrafları yoksay (.gitkeep hariç)
+public/img_backup/
 python/compressor/original/*
 !python/compressor/original/.gitkeep
 python/compressor/compressed/*

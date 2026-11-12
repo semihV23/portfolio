@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import orderList from '../../public/order.json';
 
@@ -8,9 +8,9 @@ const modules = import.meta.glob('/public/img/*.{jpg,jpeg,png,webp,svg}', { eage
 // Dosya yollarını ve sadece dosya isimlerini (filename) ayırıyoruz
 const availableImages = Object.keys(modules).map((path) => {
   const filename = path.split('/').pop() || '';
-  return { 
-    url: path.replace('/public', ''), 
-    filename: filename 
+  return {
+    url: path.replace('/public', ''),
+    filename: filename
   };
 });
 
@@ -20,7 +20,7 @@ const sortedImages = [...availableImages].sort((a, b) => {
     // Hem uzantılı tam isme hem de uzantısız isme göre arama yapalım
     let idx = orderList.indexOf(filename);
     if (idx !== -1) return idx;
-    
+
     const baseName = filename.substring(0, filename.lastIndexOf('.')) || filename;
     return orderList.indexOf(baseName);
   };
@@ -31,14 +31,19 @@ const sortedImages = [...availableImages].sort((a, b) => {
   if (indexA !== -1 && indexB !== -1) return indexA - indexB;
   if (indexA !== -1) return -1;
   if (indexB !== -1) return 1;
-  
+
   return a.filename.localeCompare(b.filename);
 });
 
 const images = sortedImages.map(img => img.url);
 
+const INITIAL_BATCH = 12;
+const BATCH_SIZE = 9;
+
 export default function Gallery() {
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_BATCH);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -46,22 +51,44 @@ export default function Gallery() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // iOS Safari bellek aşımını önlemek için görünmez sentinel ile kademeli yükleme
+  useEffect(() => {
+    if (visibleCount >= images.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + BATCH_SIZE, images.length));
+        }
+      },
+      { rootMargin: '600px' } // Kullanıcı yaklaşmadan önce akıcı şekilde yükler
+    );
+
+    const target = sentinelRef.current;
+    if (target) observer.observe(target);
+
+    return () => {
+      if (target) observer.unobserve(target);
+    };
+  }, [visibleCount]);
+
   // Ekran genişliğine göre sütun sayısını belirle
   let colCount = 1;
   if (windowWidth >= 1024) colCount = 3;
   else if (windowWidth >= 768) colCount = 2;
 
   // Görselleri soldan sağa dağıt (Dealing cards mantığı)
+  const displayedImages = images.slice(0, visibleCount);
   const columns: string[][] = Array.from({ length: colCount }, () => []);
-  images.forEach((img, index) => {
+  displayedImages.forEach((img, index) => {
     columns[index % colCount].push(img);
   });
 
   return (
     <>
-      <motion.div 
-        initial={{ opacity: 0 }} 
-        animate={{ opacity: 1 }} 
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.5 }}
         className="max-w-[1920px] mx-auto px-4 md:px-8 relative pt-4 pb-2"
@@ -72,19 +99,20 @@ export default function Gallery() {
               {columnImages.map((img) => {
                 const originalIndex = images.indexOf(img);
                 return (
-                  <motion.div 
-                    key={img} 
+                  <motion.div
+                    key={img}
                     className="relative group flex flex-col"
-                    initial={{ opacity: 0, y: 40 }}
+                    initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: "0px 0px -50px 0px" }}
-                    transition={{ duration: 0.7, ease: "easeOut" }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
                   >
                     <div className="relative overflow-hidden bg-gray-100">
-                      <img 
-                        src={img} 
-                        alt={`Gallery Image ${originalIndex}`} 
+                      <img
+                        src={img}
+                        alt={`Gallery Image ${originalIndex + 1}`}
                         loading="lazy"
+                        decoding="async"
                         className="w-full h-auto object-cover transform transition-transform duration-700 ease-out group-hover:scale-[1.02]"
                       />
                       {/* Sıra Numarası */}
@@ -98,6 +126,11 @@ export default function Gallery() {
             </div>
           ))}
         </div>
+
+        {/* Görünmez yükleme tetikleyicisi (tasarıma hiçbir görsel etkisi yoktur) */}
+        {visibleCount < images.length && (
+          <div ref={sentinelRef} className="h-10 w-full pointer-events-none opacity-0" aria-hidden="true" />
+        )}
       </motion.div>
 
     </>
